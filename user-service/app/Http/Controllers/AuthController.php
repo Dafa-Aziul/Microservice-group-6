@@ -13,15 +13,19 @@ class AuthController extends Controller
 {
     use ApiResponse;
 
+    // =========================
     // 1. REGISTER USER
+    // =========================
     public function register(Request $request)
     {
-        Log::info("Request: Registrasi user baru", [
-            "email" => $request->email
+        $cid = $request->attributes->get('correlation_id');
+
+        Log::info("REQUEST REGISTER USER", [
+            "email" => $request->email,
+            "correlation_id" => $cid
         ]);
 
         try {
-            // VALIDASI INPUT
             $validator = Validator::make($request->all(), [
                 'name'     => 'required|string',
                 'email'    => 'required|email|unique:users',
@@ -30,8 +34,10 @@ class AuthController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning("Validasi registrasi gagal", [
-                    "errors" => $validator->errors()->all()
+
+                Log::warning("REGISTER FAILED: VALIDATION ERROR", [
+                    "errors" => $validator->errors()->all(),
+                    "correlation_id" => $cid
                 ]);
 
                 return $this->errorResponse(
@@ -42,7 +48,6 @@ class AuthController extends Controller
                 );
             }
 
-            // CREATE USER
             $user = User::create([
                 'name'     => $request->name,
                 'email'    => $request->email,
@@ -50,17 +55,19 @@ class AuthController extends Controller
                 'role'     => $request->role ?? 'staff'
             ]);
 
-            Log::info("Registrasi user berhasil", [
+            Log::info("REGISTER SUCCESS", [
                 "user_id" => $user->id,
-                "email"   => $user->email
+                "email" => $user->email,
+                "correlation_id" => $cid
             ]);
 
             return $this->successResponse($user, 'Registrasi berhasil', 201);
 
         } catch (\Throwable $e) {
-            Log::error("Error: Registrasi user gagal", [
+
+            Log::error("REGISTER ERROR", [
                 "error" => $e->getMessage(),
-                "email" => $request->email
+                "correlation_id" => $cid
             ]);
 
             return $this->errorResponse(
@@ -71,23 +78,29 @@ class AuthController extends Controller
         }
     }
 
+    // =========================
     // 2. LOGIN USER
+    // =========================
     public function login(Request $request)
     {
-        Log::info("Request: Login user", [
-            "email" => $request->email
+        $cid = $request->attributes->get('correlation_id');
+
+        Log::info("REQUEST LOGIN USER", [
+            "email" => $request->email,
+            "correlation_id" => $cid
         ]);
 
         try {
-            // VALIDASI INPUT
             $validator = Validator::make($request->all(), [
                 "email"    => "required|email",
                 "password" => "required"
             ]);
 
             if ($validator->fails()) {
-                Log::warning("Validasi login gagal", [
-                    "errors" => $validator->errors()->all()
+
+                Log::warning("LOGIN FAILED: VALIDATION ERROR", [
+                    "errors" => $validator->errors()->all(),
+                    "correlation_id" => $cid
                 ]);
 
                 return $this->errorResponse(
@@ -98,12 +111,13 @@ class AuthController extends Controller
                 );
             }
 
-            // CEK USER
             $user = User::where("email", $request->email)->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
-                Log::warning("Login gagal: email atau password salah", [
-                    "email" => $request->email
+
+                Log::warning("LOGIN FAILED: WRONG CREDENTIALS", [
+                    "email" => $request->email,
+                    "correlation_id" => $cid
                 ]);
 
                 return $this->errorResponse(
@@ -113,12 +127,12 @@ class AuthController extends Controller
                 );
             }
 
-            // BUAT TOKEN
             $token = $user->createToken("api-token")->plainTextToken;
 
-            Log::info("Login user berhasil", [
+            Log::info("LOGIN SUCCESS", [
                 "user_id" => $user->id,
-                "email"   => $user->email
+                "email" => $user->email,
+                "correlation_id" => $cid
             ]);
 
             return $this->successResponse([
@@ -127,9 +141,10 @@ class AuthController extends Controller
             ], 'Login berhasil');
 
         } catch (\Throwable $e) {
-            Log::error("Error: Terjadi kesalahan saat login", [
+
+            Log::error("LOGIN ERROR", [
                 "error" => $e->getMessage(),
-                "email" => $request->email
+                "correlation_id" => $cid
             ]);
 
             return $this->errorResponse(
@@ -140,26 +155,33 @@ class AuthController extends Controller
         }
     }
 
+    // =========================
     // 3. LOGOUT
+    // =========================
     public function logout(Request $request)
     {
-        Log::info("Request: Logout user", [
-            "user_id" => $request->user()->id
+        $cid = $request->attributes->get('correlation_id');
+
+        Log::info("REQUEST LOGOUT USER", [
+            "user_id" => $request->user()->id,
+            "correlation_id" => $cid
         ]);
 
         try {
             $request->user()->currentAccessToken()->delete();
 
-            Log::info("Logout berhasil", [
-                "user_id" => $request->user()->id
+            Log::info("LOGOUT SUCCESS", [
+                "user_id" => $request->user()->id,
+                "correlation_id" => $cid
             ]);
 
             return $this->successResponse(null, 'Logout berhasil');
 
         } catch (\Throwable $e) {
-            Log::error("Error: Logout gagal", [
-                "error"   => $e->getMessage(),
-                "user_id" => $request->user()->id
+
+            Log::error("LOGOUT ERROR", [
+                "error" => $e->getMessage(),
+                "correlation_id" => $cid
             ]);
 
             return $this->errorResponse(
@@ -170,26 +192,89 @@ class AuthController extends Controller
         }
     }
 
-    // 4. ME — GET USER DETAILS
+    // =========================
+    // 4. ME
+    // =========================
     public function me(Request $request)
     {
-        Log::info("Request: Ambil data user (me)", [
-            "user_id" => $request->user()->id
+        $cid = $request->attributes->get('correlation_id');
+
+        Log::info("REQUEST ME", [
+            "user_id" => $request->user()->id ?? null,
+            "correlation_id" => $cid
         ]);
 
         try {
+
             $user = $request->user();
 
-            Log::info("Data user (me) berhasil diambil", [
-                "user_id" => $user->id
+            Log::info("ME SUCCESS", [
+                "user_id" => $user->id,
+                "correlation_id" => $cid
             ]);
 
             return $this->successResponse($user, 'Data user berhasil diambil');
 
         } catch (\Throwable $e) {
-            Log::error("Error mengambil data user (me)", [
-                "error"   => $e->getMessage(),
-                "user_id" => $request->user()->id
+
+            Log::error("ME ERROR", [
+                "error" => $e->getMessage(),
+                "correlation_id" => $cid
+            ]);
+
+            return $this->errorResponse(
+                'Terjadi kesalahan server.',
+                500,
+                'SERVER_ERROR'
+            );
+        }
+    }
+
+    // =========================
+    // 5. TOKEN VALIDATION UNTUK MICROSERVICE
+    // =========================
+    public function validateToken(Request $request)
+    {
+        $cid = $request->attributes->get('correlation_id');
+
+        Log::info("REQUEST TOKEN VALIDATION", [
+            "correlation_id" => $cid
+        ]);
+
+        try {
+            $token = $request->bearerToken();
+
+            if (!$token) {
+                Log::warning("TOKEN VALIDATION FAILED: NO TOKEN", [
+                    "correlation_id" => $cid
+                ]);
+                return $this->errorResponse("Token tidak ditemukan.", 401, "TOKEN_NOT_FOUND");
+            }
+
+            $pat = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+
+            if (!$pat) {
+                Log::warning("TOKEN VALIDATION FAILED: INVALID TOKEN", [
+                    "correlation_id" => $cid
+                ]);
+                return $this->errorResponse("Token tidak valid.", 401, "TOKEN_INVALID");
+            }
+
+            $user = $pat->tokenable;
+
+            Log::info("TOKEN VALIDATION SUCCESS", [
+                "user_id" => $user->id,
+                "role" => $user->role,
+                "correlation_id" => $cid
+            ]);
+
+            return $this->successResponse($user, "Token valid");
+
+        } catch (\Throwable $e) {
+
+            Log::error("TOKEN VALIDATION ERROR", [
+                "error" => $e->getMessage(),
+                "correlation_id" => $cid
             ]);
 
             return $this->errorResponse(

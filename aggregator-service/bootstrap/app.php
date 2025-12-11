@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\CorrelationIdMiddleware::class,
-        ]);
+        ])->alias(['auth.token' => \App\Http\Middleware\AuthTokenMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -13,27 +13,39 @@ class CategoryController extends Controller
     use ApiResponse;
 
     // 1. LIST SEMUA KATEGORI
-    public function index()
+    public function index(Request $request)
     {
-        Log::info('Request: Ambil semua kategori');
+        $authUser = $request->auth_user;
+        $userId = $authUser["id"];
+        $correlationId = $request->attributes->get("correlation_id");
+
+        Log::info('Request: Ambil semua kategori', [
+            "user_id"   => $userId,
+            "correlation_id" => $correlationId
+        ]);
 
         $categories = Category::all();
 
         Log::info('Response: Daftar kategori berhasil diambil', [
-            'count' => $categories->count()
+            'count'          => $categories->count(),
+            "correlation_id" => $correlationId
         ]);
 
-        return $this->successResponse(
-            $categories,
-            'Daftar kategori berhasil diambil'
-        );
+        return $this->successResponse($categories, 'Daftar kategori berhasil diambil');
     }
+
 
     // 2. TAMBAH KATEGORI BARU
     public function store(Request $request)
     {
+        $authUser = $request->auth_user;
+        $userId = $authUser["id"];
+        $correlationId = $request->attributes->get("correlation_id");
+
         Log::info('Request: Tambah kategori baru', [
-            'payload' => $request->all()
+            'payload'        => $request->all(),
+            "user_id"   => $userId,
+            "correlation_id" => $correlationId
         ]);
 
         $validator = Validator::make($request->all(), [
@@ -42,7 +54,8 @@ class CategoryController extends Controller
 
         if ($validator->fails()) {
             Log::warning('Validasi gagal saat membuat kategori', [
-                'errors' => $validator->errors()
+                'errors'        => $validator->errors(),
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse(
@@ -57,8 +70,10 @@ class CategoryController extends Controller
             $category = Category::create($validator->validated());
 
             Log::info('Kategori berhasil dibuat', [
-                'id' => $category->id,
-                'name' => $category->name
+                'id'            => $category->id,
+                'name'          => $category->name,
+                "user_id"  => $userId,
+                "correlation_id"=> $correlationId
             ]);
 
             return $this->successResponse(
@@ -69,7 +84,8 @@ class CategoryController extends Controller
 
         } catch (\Throwable $th) {
             Log::error('Error: Gagal membuat kategori', [
-                'error' => $th->getMessage()
+                'error'         => $th->getMessage(),
+                "correlation_id"=> $correlationId
             ]);
 
             return $this->errorResponse(
@@ -81,25 +97,34 @@ class CategoryController extends Controller
         }
     }
 
+
     // 3. DETAIL SATU KATEGORI
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        $authUser = $request->auth_user;
+        $userId = $authUser["id"];
+        $correlationId = $request->attributes->get("correlation_id");
+
         Log::info('Request: Ambil detail kategori', [
-            'id' => $id
+            'category_id'    => $id,
+            "user_id"   => $userId,
+            "correlation_id" => $correlationId
         ]);
 
         $category = Category::find($id);
 
         if (!$category) {
             Log::warning('Kategori tidak ditemukan', [
-                'id' => $id
+                'category_id'    => $id,
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse('Kategori tidak ditemukan.', 404, 'NOT_FOUND');
         }
 
         Log::info('Detail kategori berhasil diambil', [
-            'id' => $category->id
+            'category_id'    => $category->id,
+            "correlation_id" => $correlationId
         ]);
 
         return $this->successResponse(
@@ -108,19 +133,27 @@ class CategoryController extends Controller
         );
     }
 
+
     // 4. UPDATE KATEGORI
     public function update(Request $request, $id)
     {
+        $authUser = $request->auth_user;
+        $userId = $authUser["id"];
+        $correlationId = $request->attributes->get("correlation_id");
+
         Log::info('Request: Update kategori', [
-            'id' => $id,
-            'payload' => $request->all()
+            'category_id'    => $id,
+            'payload'        => $request->all(),
+            "user_id"   => $userId,
+            "correlation_id" => $correlationId
         ]);
 
         $category = Category::find($id);
 
         if (!$category) {
             Log::warning('Kategori tidak ditemukan saat update', [
-                'id' => $id
+                'category_id'    => $id,
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse('Kategori tidak ditemukan.', 404, 'NOT_FOUND');
@@ -132,8 +165,9 @@ class CategoryController extends Controller
 
         if ($validator->fails()) {
             Log::warning('Validasi gagal saat update kategori', [
-                'errors' => $validator->errors(),
-                'id' => $id
+                'errors'        => $validator->errors(),
+                'category_id'   => $id,
+                "correlation_id"=> $correlationId
             ]);
 
             return $this->errorResponse(
@@ -148,7 +182,8 @@ class CategoryController extends Controller
             $category->update($validator->validated());
 
             Log::info('Kategori berhasil diupdate', [
-                'id' => $category->id
+                'category_id'    => $category->id,
+                "correlation_id" => $correlationId
             ]);
 
             return $this->successResponse(
@@ -158,8 +193,9 @@ class CategoryController extends Controller
 
         } catch (\Throwable $th) {
             Log::error('Error: Gagal mengupdate kategori', [
-                'id' => $id,
-                'error' => $th->getMessage()
+                'category_id'    => $id,
+                'error'          => $th->getMessage(),
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse(
@@ -171,18 +207,26 @@ class CategoryController extends Controller
         }
     }
 
+
     // 5. HAPUS KATEGORI
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $authUser = $request->auth_user;
+        $userId = $authUser["id"];
+        $correlationId = $request->attributes->get("correlation_id");
+
         Log::info('Request: Hapus kategori', [
-            'id' => $id
+            'category_id'    => $id,
+            "user_id"   => $userId,
+            "correlation_id" => $correlationId
         ]);
 
         $category = Category::find($id);
 
         if (!$category) {
             Log::warning('Kategori tidak ditemukan saat delete', [
-                'id' => $id
+                'category_id'    => $id,
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse('Kategori tidak ditemukan.', 404, 'NOT_FOUND');
@@ -192,7 +236,8 @@ class CategoryController extends Controller
             $category->delete();
 
             Log::info('Kategori berhasil dihapus', [
-                'id' => $id
+                'category_id'    => $id,
+                "correlation_id" => $correlationId
             ]);
 
             return $this->successResponse(
@@ -202,8 +247,9 @@ class CategoryController extends Controller
 
         } catch (\Throwable $th) {
             Log::error('Error: Gagal menghapus kategori', [
-                'id' => $id,
-                'error' => $th->getMessage()
+                'category_id'    => $id,
+                'error'          => $th->getMessage(),
+                "correlation_id" => $correlationId
             ]);
 
             return $this->errorResponse(
