@@ -14,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // [TAMBAHAN BARU] 
+        $middleware->appendToGroup('api', [
+            \App\Http\Middleware\CorrelationIdMiddleware::class
+        ]);
+        // [TAMBAHAN BARU]
         // Jika belum login, jangan redirect ke halaman login, tapi return null
         // agar Error Handler di bawah yang menangani.
         $middleware->redirectGuestsTo(function (Request $request) {
