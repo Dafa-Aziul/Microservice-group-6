@@ -5,6 +5,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -14,32 +16,54 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+
+        // MASUKKAN CORRELATION ID DI SETIAP REQUEST API
         $middleware->appendToGroup('api', [
-            \App\Http\Middleware\CorrelationIdMiddleware::class
+            \App\Http\Middleware\CorrelationIdMiddleware::class,
         ]);
-        // [TAMBAHAN BARU]
-        // Jika belum login, jangan redirect ke halaman login, tapi return null
-        // agar Error Handler di bawah yang menangani.
-        $middleware->redirectGuestsTo(function (Request $request) {
-            if ($request->is('api/*')) {
-                return null;
-            }
-            return route('login');
-        });
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Handle Error Belum Login (Yang sudah kita buat sebelumnya)
+
+        // HANDLE AUTHENTICATION ERROR KHUSUS API
         $exceptions->render(function (AuthenticationException $e, Request $request) {
+
             if ($request->is('api/*')) {
+
+                // Ambil correlation_id dari middleware
+                $cid = $request->header('X-Correlation-ID') ?: (string) Str::uuid();
+
+
+                // Ambil header Authorization (jika ada)
+                $authHeader = $request->header("Authorization");
+
+                // Log detail error
+                Log::warning("AUTHENTICATION FAILED", [
+                    "message"           => $e->getMessage(),
+                    "authorization"     => $authHeader,
+                    "path"              => $request->path(),
+                    "guards"            => $e->guards(),
+                    "correlation_id"    => $cid,
+                    "ip_address"        => $request->ip(),
+                    "user_agent"        => $request->userAgent(),
+                ]);
+
+                // Response JSON lebih jelas
                 return response()->json([
                     'status' => 401,
                     'error' => [
-                        'code' => 'UNAUTHORIZED',
-                        'message' => 'Anda harus login terlebih dahulu untuk mengakses resource ini.',
-                        'details' => []
+                        'code'      => 'UNAUTHORIZED',
+                        'message'   => 'Autentikasi gagal. Token tidak valid, tidak diberikan, atau sudah kedaluwarsa.',
+                        'details'   => [
+                            'reason' => $e->getMessage(),
+                        ],
                     ],
-                    'data' => null
+                    'data' => null,
+                    'metadata' => [
+                        'timestamp'      => now()->toIso8601String(),
+                        'correlation_id' => $cid,
+                    ]
                 ], 401);
             }
         });
-    })->create();
+    })
+    ->create();
